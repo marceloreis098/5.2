@@ -274,6 +274,15 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ currentUser, companyName 
         }
     };
 
+    const getStatusStyle = (status: string | undefined) => {
+        const normalized = (status || '').toLowerCase().trim();
+        if (normalized === 'em uso') return 'bg-green-100 text-green-800';
+        if (normalized === 'estoque') return 'bg-yellow-100 text-yellow-800';
+        if (normalized === 'manutenção' || normalized === 'manutencao') return 'bg-orange-100 text-orange-800';
+        if (normalized === 'descartado') return 'bg-red-100 text-red-800';
+        return 'bg-gray-100 text-gray-800';
+    };
+
     return (
         <div className="bg-white dark:bg-dark-card p-4 sm:p-6 rounded-lg shadow-md">
             <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-4 gap-4">
@@ -325,13 +334,8 @@ const EquipmentList: React.FC<EquipmentListProps> = ({ currentUser, companyName 
                                     <td className="px-6 py-4">{item.usuarioAtual}</td>
                                     <td className="px-6 py-4">{item.setor}</td>
                                     <td className="px-6 py-4">
-                                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                                            item.status === 'Em Uso' ? 'bg-green-100 text-green-800' :
-                                            item.status === 'Estoque' ? 'bg-yellow-100 text-yellow-800' :
-                                            item.status === 'Manutenção' ? 'bg-orange-100 text-orange-800' :
-                                            'bg-gray-100 text-gray-800'
-                                        }`}>
-                                            {item.status}
+                                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${getStatusStyle(item.status)}`}>
+                                            {item.status && item.status.trim() ? item.status : 'Indefinido'}
                                         </span>
                                     </td>
                                     <td className="px-6 py-4 text-right flex justify-end gap-2">
