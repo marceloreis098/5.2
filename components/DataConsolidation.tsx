@@ -79,7 +79,7 @@ const DataConsolidation: React.FC<{ currentUser: User }> = ({ currentUser }) => 
         if (lines.length < 2) throw new Error("O arquivo CSV deve conter um cabeçalho e pelo menos uma linha de dados.");
 
         const headerLine = lines[0].endsWith(',') || lines[0].endsWith(';') ? lines[0].slice(0, -1) : lines[0];
-        // Auto-detect separator
+        // Auto-detect separator by checking which is more prevalent in the header
         const separator = (headerLine.match(/;/g) || []).length > (headerLine.match(/,/g) || []).length ? ';' : ',';
         const header = splitCsvLine(headerLine, separator).map(h => h.trim().toUpperCase());
         const rows = lines.slice(1);
@@ -129,25 +129,25 @@ const DataConsolidation: React.FC<{ currentUser: User }> = ({ currentUser }) => 
                 'OBSERVACOES': 'observacoes'
             };
 
-            // Absolute Mappings
+            // Atualizado conforme imagem fornecida pelo usuário (Coluna B)
             const absoluteMappings: { [key: string]: keyof Equipment } = {
                 'IDENTIFICADOR': 'identificador',
                 'NOMEDODISPOSITIVO': 'equipamento',
                 'NÚMERODESÉRIE': 'serial',
-                'NUMERODESERIE': 'serial', 
+                'NUMERODESERIE': 'serial', // Fallback sem acento
                 'MARCA': 'brand',
                 'MODELO': 'model',
                 'NOMEDOUSUÁRIOATUAL': 'usuarioAtual',
-                'NOMEDOUSUARIOATUAL': 'usuarioAtual',
+                'NOMEDOUSUARIOATUAL': 'usuarioAtual', // Fallback sem acento
                 'NOMEDOSO': 'nomeSO',
                 'MEMÓRIAFÍSICATOTAL': 'memoriaFisicaTotal', 
-                'MEMORIAFISICATOTAL': 'memoriaFisicaTotal',
+                'MEMORIAFISICATOTAL': 'memoriaFisicaTotal', // Fallback
                 'GRUPODEPOLÍTICAS': 'grupoPoliticas',
-                'GRUPODEPOLITICAS': 'grupoPoliticas',
+                'GRUPODEPOLITICAS': 'grupoPoliticas', // Fallback
                 'PAÍS': 'pais',
-                'PAIS': 'pais',
+                'PAIS': 'pais', // Fallback
                 'ESTADO/PROVÍNCIA': 'estadoProvincia',
-                'ESTADOPROVINCIA': 'estadoProvincia',
+                'ESTADOPROVINCIA': 'estadoProvincia', // Fallback
                 'CIDADE': 'cidade'
             };
 
@@ -175,28 +175,38 @@ const DataConsolidation: React.FC<{ currentUser: User }> = ({ currentUser }) => 
                     const absUser = absoluteItem.usuarioAtual ? absoluteItem.usuarioAtual.trim() : '';
 
                     if (baseUser === '' && absUser !== '') {
+                        // Caso: Planilha Base em branco, Absolute tem usuário.
+                        // Ação: Preencher a base (Atualizar registro existente) e NÃO criar novo.
                         finalData.push({
                             ...baseItem,
-                            ...absoluteItem, 
+                            ...absoluteItem, // Absolute preenche os dados faltantes
                             status: 'Em Uso'
                         });
                     } else if (baseUser !== '' && absUser !== '' && baseUser.toLowerCase() !== absUser.toLowerCase()) {
-                        finalData.push(baseItem); 
+                        // Caso: Ambos têm usuários, mas são diferentes.
+                        // Ação: Criar um novo campo (registro) no banco. Mantém o da base e adiciona o do absolute.
+                        finalData.push(baseItem); // Mantém o original da base
                         finalData.push({
                             ...absoluteItem,
                             status: 'Em Uso',
+                            // Copia dados genéricos da base que o absolute não tem, se necessário, 
+                            // ou deixa limpo para indicar que veio do absolute puro
                             tipo: baseItem.tipo, 
                             notaCompra: baseItem.notaCompra,
                             notaPlKm: baseItem.notaPlKm
                         });
                     } else {
+                        // Caso: Usuários iguais ou Absolute sem usuário.
+                        // Ação: Merge padrão (Absolute atualiza dados técnicos da Base)
                         finalData.push({ ...baseItem, ...absoluteItem });
                     }
                 } else {
+                    // Não tem no Absolute, mantém da Base
                     finalData.push(baseItem);
                 }
             });
             
+            // Adiciona itens que só existem no Absolute
             absoluteData.forEach(absoluteItem => {
                 const serialKey = absoluteItem.serial!.toUpperCase().replace(/\s/g, '');
                 if (!processedSerialsFromAbsolute.has(serialKey)) {
@@ -222,6 +232,7 @@ const DataConsolidation: React.FC<{ currentUser: User }> = ({ currentUser }) => 
         setError(null);
         try {
             const dataToSave = consolidatedData.map(item => ({...item, id: undefined})) as Omit<Equipment, 'id'>[];
+            // Ensure currentUser.username is correctly passed here
             const result = await importEquipment(dataToSave, currentUser.username);
             if (result.success) {
                 alert('Inventário consolidado e salvo com sucesso! A aplicação será recarregada para refletir as mudanças.');
